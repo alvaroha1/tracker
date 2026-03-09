@@ -66,6 +66,15 @@ Local-first fitness tracker that runs in the browser.
 2. `npm run dev`
 3. Open the URL shown by Vite (usually `http://localhost:5173`)
 
+## Deploy to GitHub Pages
+
+1. `npm install`
+2. `npm run deploy`
+3. In GitHub repo settings, configure Pages to use branch `gh-pages` (root).
+
+Site URL:
+- `https://alvaroha1.github.io/tracker`
+
 ## Project structure
 
 - `src/components/AppLayout.tsx`: Header and tab navigation
