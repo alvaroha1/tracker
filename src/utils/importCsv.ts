@@ -101,10 +101,15 @@ function foodKey(
 function activityKey(
   entry: Pick<ActivityEntry, 'date' | 'type' | 'steps' | 'classConcept'>,
 ): string {
+  const metric =
+    entry.type === 'steps' && typeof entry.steps === 'number'
+      ? entry.steps.toFixed(4)
+      : normalize(entry.classConcept ?? '');
+
   return [
     entry.date,
     entry.type,
-    entry.type === 'steps' ? entry.steps.toFixed(4) : normalize(entry.classConcept),
+    metric,
   ].join('|');
 }
 

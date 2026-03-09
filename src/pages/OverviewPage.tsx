@@ -15,6 +15,21 @@ type Comparison = {
   pctChange: number | null;
 };
 
+function isStepsEntry(
+  entry: ReturnType<typeof loadActivityEntries>[number],
+): entry is Extract<ReturnType<typeof loadActivityEntries>[number], { type: 'steps' }> {
+  return entry.type === 'steps';
+}
+
+function isGymClassEntry(
+  entry: ReturnType<typeof loadActivityEntries>[number],
+): entry is Extract<
+  ReturnType<typeof loadActivityEntries>[number],
+  { type: 'gym_class' }
+> {
+  return entry.type === 'gym_class';
+}
+
 function dayIndexFromDate(value: string): number {
   const [year, month, day] = value.split('-').map(Number);
   if (!year || !month || !day) {
@@ -179,27 +194,29 @@ export function OverviewPage() {
   const todayActivityEntries = activities.filter(
     (entry) => dayIndexFromDate(entry.date) === today,
   );
-  const todaySteps = todayActivityEntries
-    .filter((entry) => entry.type === 'steps')
-    .reduce((sum, entry) => sum + entry.steps, 0);
-  const todayGymClasses = todayActivityEntries.filter(
-    (entry) => entry.type === 'gym_class',
-  ).length;
+  const todaySteps = todayActivityEntries.reduce(
+    (sum, entry) => (entry.type === 'steps' ? sum + entry.steps : sum),
+    0,
+  );
+  const todayGymClasses = todayActivityEntries.filter(isGymClassEntry).length;
 
   const steps30Range = lastNDaysRange(30, today);
   const steps30Entries = activities.filter(
     (entry) =>
-      entry.type === 'steps' &&
+      isStepsEntry(entry) &&
       includesDay(steps30Range, dayIndexFromDate(entry.date)),
   );
   const averageSteps30 =
     steps30Entries.length > 0
-      ? steps30Entries.reduce((sum, entry) => sum + entry.steps, 0) / 30
+      ? steps30Entries.reduce(
+          (sum, entry) => (entry.type === 'steps' ? sum + entry.steps : sum),
+          0,
+        ) / 30
       : null;
 
   const gymClassEntriesLast30Days = activities.filter(
     (entry) =>
-      entry.type === 'gym_class' &&
+      isGymClassEntry(entry) &&
       includesDay(steps30Range, dayIndexFromDate(entry.date)),
   );
   const gymVisitsLast30Days = gymClassEntriesLast30Days.length;
@@ -214,6 +231,10 @@ export function OverviewPage() {
 
   const classesByConcept = new Map<string, number>();
   for (const entry of gymClassEntriesLast30Days) {
+    if (entry.type !== 'gym_class') {
+      continue;
+    }
+
     classesByConcept.set(
       entry.classConcept,
       (classesByConcept.get(entry.classConcept) ?? 0) + 1,

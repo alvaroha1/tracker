@@ -4,7 +4,7 @@ import { loadWeightEntries } from '../features/weight/storage';
 
 function escapeCell(value: string): string {
   if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-    return `"${value.replaceAll('"', '""')}"`;
+    return `"${value.replace(/"/g, '""')}"`;
   }
 
   return value;

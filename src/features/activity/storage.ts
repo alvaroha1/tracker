@@ -29,74 +29,76 @@ function parseActivityEntry(value: unknown): ActivityEntry[] {
     return [];
   }
 
-  const candidate = value as Partial<
-    ActivityEntry & { steps?: number; classConcept?: string | null }
-  >;
+  const candidate = value as Record<string, unknown>;
+  const id = typeof candidate.id === 'string' ? candidate.id : null;
+  const date = typeof candidate.date === 'string' ? candidate.date : null;
+  const createdAt =
+    typeof candidate.createdAt === 'string' ? candidate.createdAt : null;
+  const updatedAt =
+    typeof candidate.updatedAt === 'string' ? candidate.updatedAt : null;
 
-  const hasBaseFields =
-    typeof candidate.id === 'string' &&
-    typeof candidate.date === 'string' &&
-    typeof candidate.createdAt === 'string' &&
-    typeof candidate.updatedAt === 'string';
-
-  if (!hasBaseFields) {
+  if (!id || !date || !createdAt || !updatedAt) {
     return [];
   }
 
+  const type = candidate.type;
+  const steps = candidate.steps;
+  const classConcept = candidate.classConcept;
+
   if (
-    candidate.type === 'steps' &&
-    typeof candidate.steps === 'number' &&
-    Number.isFinite(candidate.steps)
+    type === 'steps' &&
+    typeof steps === 'number' &&
+    Number.isFinite(steps)
   ) {
     return [
       {
-        id: candidate.id,
-        date: candidate.date,
+        id,
+        date,
         type: 'steps',
-        steps: candidate.steps,
+        steps,
         classConcept: null,
-        createdAt: candidate.createdAt,
-        updatedAt: candidate.updatedAt,
+        createdAt,
+        updatedAt,
       },
     ];
   }
 
-  if (candidate.type === 'gym_class' && typeof candidate.classConcept === 'string') {
+  if (type === 'gym_class' && typeof classConcept === 'string') {
     return [
       {
-        id: candidate.id,
-        date: candidate.date,
+        id,
+        date,
         type: 'gym_class',
         steps: null,
-        classConcept: candidate.classConcept,
-        createdAt: candidate.createdAt,
-        updatedAt: candidate.updatedAt,
+        classConcept,
+        createdAt,
+        updatedAt,
       },
     ];
   }
 
   const migrated: ActivityEntry[] = [];
-  if (typeof candidate.steps === 'number' && Number.isFinite(candidate.steps)) {
+  if (typeof steps === 'number' && Number.isFinite(steps)) {
     migrated.push({
-      id: `${candidate.id}-steps`,
-      date: candidate.date,
+      id: `${id}-steps`,
+      date,
       type: 'steps',
-      steps: candidate.steps,
+      steps,
       classConcept: null,
-      createdAt: candidate.createdAt,
-      updatedAt: candidate.updatedAt,
+      createdAt,
+      updatedAt,
     });
   }
 
-  if (typeof candidate.classConcept === 'string' && candidate.classConcept.trim()) {
+  if (typeof classConcept === 'string' && classConcept.trim()) {
     migrated.push({
-      id: `${candidate.id}-class`,
-      date: candidate.date,
+      id: `${id}-class`,
+      date,
       type: 'gym_class',
       steps: null,
-      classConcept: candidate.classConcept.trim(),
-      createdAt: candidate.createdAt,
-      updatedAt: candidate.updatedAt,
+      classConcept: classConcept.trim(),
+      createdAt,
+      updatedAt,
     });
   }
 
