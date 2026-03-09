@@ -1,14 +1,16 @@
 import { loadActivityEntries, saveActivityEntries } from '../features/activity/storage';
 import { loadFoodEntries, saveFoodEntries } from '../features/food/storage';
+import { loadFoodTemplates, saveFoodTemplates } from '../features/food/templateStorage';
 import { loadWeightEntries, saveWeightEntries } from '../features/weight/storage';
 import type { ActivityEntry } from '../features/activity/types';
-import type { FoodEntry } from '../features/food/types';
+import type { FoodEntry, FoodTemplate } from '../features/food/types';
 import type { WeightEntry } from '../features/weight/types';
 
 type CsvImportResult = {
   addedWeight: number;
   addedFood: number;
   addedActivity: number;
+  addedDishes: number;
   skipped: number;
   errors: string[];
 };
@@ -113,6 +115,17 @@ function activityKey(
   ].join('|');
 }
 
+function dishKey(
+  entry: Pick<FoodTemplate, 'name' | 'calories' | 'proteinGrams' | 'carbsGrams'>,
+): string {
+  return [
+    normalize(entry.name),
+    entry.calories.toFixed(4),
+    entry.proteinGrams.toFixed(4),
+    entry.carbsGrams.toFixed(4),
+  ].join('|');
+}
+
 function getValue(row: string[], headerIndex: Map<string, number>, key: string): string {
   const index = headerIndex.get(key);
   if (index === undefined) {
@@ -131,6 +144,7 @@ export async function importAllDataFromCsv(file: File): Promise<CsvImportResult>
       addedWeight: 0,
       addedFood: 0,
       addedActivity: 0,
+      addedDishes: 0,
       skipped: 0,
       errors: ['CSV has no data rows.'],
     };
@@ -141,31 +155,36 @@ export async function importAllDataFromCsv(file: File): Promise<CsvImportResult>
     header.map((value, index) => [value, index]),
   );
 
-  if (!headerIndex.has('category') || !headerIndex.has('date')) {
+  if (!headerIndex.has('category')) {
     return {
       addedWeight: 0,
       addedFood: 0,
       addedActivity: 0,
+      addedDishes: 0,
       skipped: rows.length - 1,
-      errors: ['CSV must include at least category and date columns.'],
+      errors: ['CSV must include at least a category column.'],
     };
   }
 
   const existingWeights = loadWeightEntries();
   const existingFoods = loadFoodEntries();
   const existingActivities = loadActivityEntries();
+  const existingDishes = loadFoodTemplates();
 
   const weightEntries = [...existingWeights];
   const foodEntries = [...existingFoods];
   const activityEntries = [...existingActivities];
+  const dishEntries = [...existingDishes];
 
   const weightKeys = new Set(weightEntries.map(weightKey));
   const foodKeys = new Set(foodEntries.map(foodKey));
   const activityKeys = new Set(activityEntries.map(activityKey));
+  const dishKeys = new Set(dishEntries.map(dishKey));
 
   let addedWeight = 0;
   let addedFood = 0;
   let addedActivity = 0;
+  let addedDishes = 0;
   let skipped = 0;
   const errors: string[] = [];
 
@@ -178,8 +197,10 @@ export async function importAllDataFromCsv(file: File): Promise<CsvImportResult>
 
     const category = normalize(getValue(row, headerIndex, 'category'));
     const date = getValue(row, headerIndex, 'date');
+    const isDishCategory =
+      category === 'dish' || category === 'dishes' || category === 'template' || category === 'food_template';
 
-    if (!isDate(date)) {
+    if (!isDishCategory && !isDate(date)) {
       skipped += 1;
       errors.push(`Row ${rowIndex + 1}: invalid date.`);
       continue;
@@ -319,6 +340,40 @@ export async function importAllDataFromCsv(file: File): Promise<CsvImportResult>
       continue;
     }
 
+    if (isDishCategory) {
+      const name = getValue(row, headerIndex, 'dish_name') || getValue(row, headerIndex, 'template_name');
+      const calories = asNumber(getValue(row, headerIndex, 'calories'));
+      const protein = asNumber(getValue(row, headerIndex, 'protein_grams'));
+      const carbs = asNumber(getValue(row, headerIndex, 'carbs_grams'));
+
+      if (!name || calories === null || calories <= 0 || protein === null || protein < 0 || carbs === null || carbs < 0) {
+        skipped += 1;
+        errors.push(`Row ${rowIndex + 1}: invalid dish values.`);
+        continue;
+      }
+
+      const newEntry: FoodTemplate = {
+        id: crypto.randomUUID(),
+        name,
+        calories,
+        proteinGrams: protein,
+        carbsGrams: carbs,
+        createdAt,
+        updatedAt,
+      };
+
+      const key = dishKey(newEntry);
+      if (dishKeys.has(key)) {
+        skipped += 1;
+        continue;
+      }
+
+      dishEntries.push(newEntry);
+      dishKeys.add(key);
+      addedDishes += 1;
+      continue;
+    }
+
     skipped += 1;
     errors.push(`Row ${rowIndex + 1}: unknown category.`);
   }
@@ -332,11 +387,15 @@ export async function importAllDataFromCsv(file: File): Promise<CsvImportResult>
   if (addedActivity > 0) {
     saveActivityEntries(activityEntries);
   }
+  if (addedDishes > 0) {
+    saveFoodTemplates(dishEntries);
+  }
 
   return {
     addedWeight,
     addedFood,
     addedActivity,
+    addedDishes,
     skipped,
     errors,
   };

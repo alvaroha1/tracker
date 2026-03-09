@@ -70,8 +70,8 @@ body {
 
 .top-bar {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 0.5rem;
   width: 100vw;
   margin-left: calc(50% - 50vw);
@@ -83,6 +83,11 @@ body {
   padding: 10px 12px;
 }
 
+.top-bar-right {
+  display: grid;
+  gap: 0.28rem;
+}
+
 .top-bar-controls {
   display: flex;
   align-items: center;
@@ -91,10 +96,25 @@ body {
   flex-wrap: wrap;
 }
 
+.top-bar-version {
+  margin: 0;
+  padding-top: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.top-bar-action {
+  padding: 0.3rem 0.58rem;
+  font-size: 0.78rem;
+  border-radius: 8px;
+}
+
 .top-bar-note {
   margin: 0;
   font-size: 0.78rem;
   color: var(--text-muted);
+  text-align: right;
 }
 
 .app-header {

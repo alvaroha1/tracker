@@ -1,5 +1,6 @@
 import { loadActivityEntries } from '../features/activity/storage';
 import { loadFoodEntries } from '../features/food/storage';
+import { loadFoodTemplates } from '../features/food/templateStorage';
 import { loadWeightEntries } from '../features/weight/storage';
 
 function escapeCell(value: string): string {
@@ -20,12 +21,14 @@ export function exportAllDataToCsv(): void {
   const weights = loadWeightEntries();
   const foods = loadFoodEntries();
   const activities = loadActivityEntries();
+  const dishes = loadFoodTemplates();
 
   const header = toCsvRow([
     'category',
     'date',
     'weight_kg',
     'food_concept',
+    'dish_name',
     'calories',
     'protein_grams',
     'carbs_grams',
@@ -51,6 +54,7 @@ export function exportAllDataToCsv(): void {
         null,
         null,
         null,
+        null,
         entry.createdAt,
         entry.updatedAt,
       ]),
@@ -64,6 +68,7 @@ export function exportAllDataToCsv(): void {
         entry.date,
         null,
         entry.concept,
+        null,
         entry.calories,
         entry.proteinGrams,
         entry.carbsGrams,
@@ -86,9 +91,30 @@ export function exportAllDataToCsv(): void {
         null,
         null,
         null,
+        null,
         entry.type,
         entry.type === 'steps' ? entry.steps : null,
         entry.type === 'gym_class' ? entry.classConcept : null,
+        entry.createdAt,
+        entry.updatedAt,
+      ]),
+    );
+  }
+
+  for (const entry of dishes) {
+    rows.push(
+      toCsvRow([
+        'dish',
+        null,
+        null,
+        null,
+        entry.name,
+        entry.calories,
+        entry.proteinGrams,
+        entry.carbsGrams,
+        null,
+        null,
+        null,
         entry.createdAt,
         entry.updatedAt,
       ]),

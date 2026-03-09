@@ -10,6 +10,7 @@ const tabs = [
   { to: '/activity', label: 'Activity' },
   { to: '/overview', label: 'Overview' },
 ] as const;
+const APP_VERSION = '0.1.0';
 
 export function AppLayout() {
   const [theme, setTheme] = useState<ThemeId>('default');
@@ -35,7 +36,7 @@ export function AppLayout() {
     }
 
     const result = await importAllDataFromCsv(file);
-    const summary = `Imported: ${result.addedWeight} weight, ${result.addedFood} food, ${result.addedActivity} activity. Skipped: ${result.skipped}.`;
+    const summary = `Imported: ${result.addedWeight} weight, ${result.addedFood} food, ${result.addedActivity} activity, ${result.addedDishes} dishes. Skipped: ${result.skipped}.`;
     const errorNote =
       result.errors.length > 0 ? ` Issues found: ${result.errors.length}.` : '';
     setImportMessage(`${summary}${errorNote}`);
@@ -45,46 +46,51 @@ export function AppLayout() {
   return (
     <div className="app-shell">
       <header className="top-bar" aria-label="Quick settings">
-        <div className="top-bar-controls">
-          <label className="theme-select">
-            Theme
-            <select
-              value={theme}
-              onChange={(event) => {
-                const next = event.target.value;
-                if (isThemeId(next)) {
-                  setTheme(next);
-                }
-              }}
-              aria-label="Select app theme"
-            >
-              {themeIds.map((id) => (
-                <option key={id} value={id}>
-                  {id}
-                </option>
-              ))}
-            </select>
-          </label>
+        <p className="top-bar-version" aria-label="App version">
+          v{APP_VERSION}
+        </p>
+        <div className="top-bar-right">
+          <div className="top-bar-controls">
+            <label className="theme-select">
+              Theme
+              <select
+                value={theme}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  if (isThemeId(next)) {
+                    setTheme(next);
+                  }
+                }}
+                aria-label="Select app theme"
+              >
+                {themeIds.map((id) => (
+                  <option key={id} value={id}>
+                    {id}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <button type="button" onClick={exportAllDataToCsv}>
-            Export CSV
-          </button>
-          <button
-            type="button"
-            className="button-secondary"
-            onClick={() => importInputRef.current?.click()}
-          >
-            Import CSV
-          </button>
-          <input
-            ref={importInputRef}
-            type="file"
-            accept=".csv,text/csv"
-            onChange={handleImportChange}
-            className="visually-hidden"
-          />
+            <button type="button" className="top-bar-action" onClick={exportAllDataToCsv}>
+              Export CSV
+            </button>
+            <button
+              type="button"
+              className="button-secondary top-bar-action"
+              onClick={() => importInputRef.current?.click()}
+            >
+              Import CSV
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              onChange={handleImportChange}
+              className="visually-hidden"
+            />
+          </div>
+          {importMessage ? <p className="top-bar-note">{importMessage}</p> : null}
         </div>
-        {importMessage ? <p className="top-bar-note">{importMessage}</p> : null}
       </header>
 
       <header className="app-header">
