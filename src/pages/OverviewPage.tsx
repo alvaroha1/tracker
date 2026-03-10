@@ -221,11 +221,19 @@ export function OverviewPage() {
   );
   const gymVisitsLast30Days = gymClassEntriesLast30Days.length;
 
-  const caloriesByConcept = new Map<string, number>();
-  for (const entry of food30Entries) {
-    caloriesByConcept.set(
+  const caloriesByConceptToday = new Map<string, number>();
+  for (const entry of todayFoodEntries) {
+    caloriesByConceptToday.set(
       entry.concept,
-      (caloriesByConcept.get(entry.concept) ?? 0) + entry.calories,
+      (caloriesByConceptToday.get(entry.concept) ?? 0) + entry.calories,
+    );
+  }
+
+  const caloriesByConceptLast7Days = new Map<string, number>();
+  for (const entry of food7Entries) {
+    caloriesByConceptLast7Days.set(
+      entry.concept,
+      (caloriesByConceptLast7Days.get(entry.concept) ?? 0) + entry.calories,
     );
   }
 
@@ -320,9 +328,14 @@ export function OverviewPage() {
             </p>
           </article>
           <PieChart
-            title="Calories by dish (last 30 days)"
-            slices={toTopSlices(caloriesByConcept, 6)}
-            emptyMessage="No food entries in the last 30 days."
+            title="Calories by dish (today)"
+            slices={toTopSlices(caloriesByConceptToday, 6)}
+            emptyMessage="No food entries today."
+          />
+          <PieChart
+            title="Calories by dish (last 7 days)"
+            slices={toTopSlices(caloriesByConceptLast7Days, 6)}
+            emptyMessage="No food entries in the last 7 days."
           />
         </div>
       </section>
