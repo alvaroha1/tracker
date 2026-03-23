@@ -8,9 +8,10 @@ const tabs = [
   { to: '/weight', label: 'Weight' },
   { to: '/food', label: 'Food' },
   { to: '/activity', label: 'Activity' },
+  { to: '/goal', label: 'Goal' },
   { to: '/overview', label: 'Overview' },
 ] as const;
-const APP_VERSION = '0.1.0';
+const APP_VERSION = '0.1.2';
 
 export function AppLayout() {
   const [theme, setTheme] = useState<ThemeId>('default');
@@ -36,7 +37,7 @@ export function AppLayout() {
     }
 
     const result = await importAllDataFromCsv(file);
-    const summary = `Imported: ${result.addedWeight} weight, ${result.addedFood} food, ${result.addedActivity} activity, ${result.addedDishes} dishes. Skipped: ${result.skipped}.`;
+    const summary = `Imported: ${result.addedWeight} weight, ${result.addedFood} food, ${result.addedActivity} activity, ${result.addedDishes} dishes, ${result.addedGoal} goal. Skipped: ${result.skipped}.`;
     const errorNote =
       result.errors.length > 0 ? ` Issues found: ${result.errors.length}.` : '';
     setImportMessage(`${summary}${errorNote}`);

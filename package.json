@@ -1,7 +1,7 @@
 {
   "name": "fitslave",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.2",
   "homepage": "https://alvaroha1.github.io/tracker",
   "type": "module",
   "scripts": {

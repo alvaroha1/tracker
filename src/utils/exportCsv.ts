@@ -1,4 +1,5 @@
 import { loadActivityEntries } from '../features/activity/storage';
+import { loadGoalSettings } from '../features/goal/storage';
 import { loadFoodEntries } from '../features/food/storage';
 import { loadFoodTemplates } from '../features/food/templateStorage';
 import { loadWeightEntries } from '../features/weight/storage';
@@ -22,6 +23,7 @@ export function exportAllDataToCsv(): void {
   const foods = loadFoodEntries();
   const activities = loadActivityEntries();
   const dishes = loadFoodTemplates();
+  const goal = loadGoalSettings();
 
   const header = toCsvRow([
     'category',
@@ -35,6 +37,8 @@ export function exportAllDataToCsv(): void {
     'activity_type',
     'steps',
     'gym_class_concept',
+    'goal_target_weight_kg',
+    'goal_baseline_weight_kg',
     'created_at',
     'updated_at',
   ]);
@@ -47,6 +51,8 @@ export function exportAllDataToCsv(): void {
         'weight',
         entry.date,
         entry.weightKg,
+        null,
+        null,
         null,
         null,
         null,
@@ -75,6 +81,8 @@ export function exportAllDataToCsv(): void {
         null,
         null,
         null,
+        null,
+        null,
         entry.createdAt,
         entry.updatedAt,
       ]),
@@ -95,6 +103,8 @@ export function exportAllDataToCsv(): void {
         entry.type,
         entry.type === 'steps' ? entry.steps : null,
         entry.type === 'gym_class' ? entry.classConcept : null,
+        null,
+        null,
         entry.createdAt,
         entry.updatedAt,
       ]),
@@ -115,8 +125,32 @@ export function exportAllDataToCsv(): void {
         null,
         null,
         null,
+        null,
+        null,
         entry.createdAt,
         entry.updatedAt,
+      ]),
+    );
+  }
+
+  if (goal) {
+    rows.push(
+      toCsvRow([
+        'goal',
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        goal.targetWeightKg,
+        goal.baselineWeightKg,
+        goal.createdAt,
+        goal.updatedAt,
       ]),
     );
   }

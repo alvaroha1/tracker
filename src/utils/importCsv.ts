@@ -1,8 +1,10 @@
 import { loadActivityEntries, saveActivityEntries } from '../features/activity/storage';
+import { loadGoalSettings, saveGoalSettings } from '../features/goal/storage';
 import { loadFoodEntries, saveFoodEntries } from '../features/food/storage';
 import { loadFoodTemplates, saveFoodTemplates } from '../features/food/templateStorage';
 import { loadWeightEntries, saveWeightEntries } from '../features/weight/storage';
 import type { ActivityEntry } from '../features/activity/types';
+import type { GoalSettings } from '../features/goal/types';
 import type { FoodEntry, FoodTemplate } from '../features/food/types';
 import type { WeightEntry } from '../features/weight/types';
 
@@ -11,6 +13,7 @@ type CsvImportResult = {
   addedFood: number;
   addedActivity: number;
   addedDishes: number;
+  addedGoal: number;
   skipped: number;
   errors: string[];
 };
@@ -145,6 +148,7 @@ export async function importAllDataFromCsv(file: File): Promise<CsvImportResult>
       addedFood: 0,
       addedActivity: 0,
       addedDishes: 0,
+      addedGoal: 0,
       skipped: 0,
       errors: ['CSV has no data rows.'],
     };
@@ -161,6 +165,7 @@ export async function importAllDataFromCsv(file: File): Promise<CsvImportResult>
       addedFood: 0,
       addedActivity: 0,
       addedDishes: 0,
+      addedGoal: 0,
       skipped: rows.length - 1,
       errors: ['CSV must include at least a category column.'],
     };
@@ -170,6 +175,7 @@ export async function importAllDataFromCsv(file: File): Promise<CsvImportResult>
   const existingFoods = loadFoodEntries();
   const existingActivities = loadActivityEntries();
   const existingDishes = loadFoodTemplates();
+  const existingGoal = loadGoalSettings();
 
   const weightEntries = [...existingWeights];
   const foodEntries = [...existingFoods];
@@ -185,8 +191,10 @@ export async function importAllDataFromCsv(file: File): Promise<CsvImportResult>
   let addedFood = 0;
   let addedActivity = 0;
   let addedDishes = 0;
+  let addedGoal = 0;
   let skipped = 0;
   const errors: string[] = [];
+  let importedGoal: GoalSettings | null = null;
 
   for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
     const row = rows[rowIndex];
@@ -199,8 +207,9 @@ export async function importAllDataFromCsv(file: File): Promise<CsvImportResult>
     const date = getValue(row, headerIndex, 'date');
     const isDishCategory =
       category === 'dish' || category === 'dishes' || category === 'template' || category === 'food_template';
+    const isGoalCategory = category === 'goal';
 
-    if (!isDishCategory && !isDate(date)) {
+    if (!isDishCategory && !isGoalCategory && !isDate(date)) {
       skipped += 1;
       errors.push(`Row ${rowIndex + 1}: invalid date.`);
       continue;
@@ -374,6 +383,34 @@ export async function importAllDataFromCsv(file: File): Promise<CsvImportResult>
       continue;
     }
 
+    if (isGoalCategory) {
+      const targetWeight = asNumber(getValue(row, headerIndex, 'goal_target_weight_kg'));
+      const baselineWeight = asNumber(getValue(row, headerIndex, 'goal_baseline_weight_kg'));
+
+      if (targetWeight === null || targetWeight <= 0 || baselineWeight === null || baselineWeight <= 0) {
+        skipped += 1;
+        errors.push(`Row ${rowIndex + 1}: invalid goal values.`);
+        continue;
+      }
+
+      const candidate: GoalSettings = {
+        targetWeightKg: targetWeight,
+        baselineWeightKg: baselineWeight,
+        createdAt,
+        updatedAt,
+      };
+
+      if (!importedGoal) {
+        importedGoal = candidate;
+        continue;
+      }
+
+      if (new Date(candidate.updatedAt).getTime() >= new Date(importedGoal.updatedAt).getTime()) {
+        importedGoal = candidate;
+      }
+      continue;
+    }
+
     skipped += 1;
     errors.push(`Row ${rowIndex + 1}: unknown category.`);
   }
@@ -390,12 +427,26 @@ export async function importAllDataFromCsv(file: File): Promise<CsvImportResult>
   if (addedDishes > 0) {
     saveFoodTemplates(dishEntries);
   }
+  if (importedGoal) {
+    const shouldSaveGoal =
+      !existingGoal ||
+      existingGoal.targetWeightKg !== importedGoal.targetWeightKg ||
+      existingGoal.baselineWeightKg !== importedGoal.baselineWeightKg ||
+      existingGoal.createdAt !== importedGoal.createdAt ||
+      existingGoal.updatedAt !== importedGoal.updatedAt;
+
+    if (shouldSaveGoal) {
+      saveGoalSettings(importedGoal);
+      addedGoal = 1;
+    }
+  }
 
   return {
     addedWeight,
     addedFood,
     addedActivity,
     addedDishes,
+    addedGoal,
     skipped,
     errors,
   };
