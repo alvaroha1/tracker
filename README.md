@@ -4,7 +4,7 @@ Local-first fitness tracker that runs in the browser.
 
 ## Version
 
-`0.1.0`
+`0.1.2`
 
 ## Current scope (MVP)
 

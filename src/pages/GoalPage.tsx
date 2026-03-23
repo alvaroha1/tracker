@@ -50,6 +50,14 @@ function latestWeight(entries: WeightEntry[]): WeightEntry | null {
   return [...entries].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
 }
 
+function oldestWeight(entries: WeightEntry[]): WeightEntry | null {
+  if (entries.length === 0) {
+    return null;
+  }
+
+  return [...entries].sort((a, b) => a.date.localeCompare(b.date))[0] ?? null;
+}
+
 function toUtcDate(date: string): Date {
   return new Date(`${date}T00:00:00Z`);
 }
@@ -215,6 +223,7 @@ export function GoalPage() {
   const weightEntries = loadWeightEntries();
   const activityEntries = loadActivityEntries();
   const currentWeightEntry = latestWeight(weightEntries);
+  const oldestWeightEntry = oldestWeight(weightEntries);
   const currentWeight = currentWeightEntry?.weightKg ?? null;
   const currentWeightDate = currentWeightEntry ? toUtcDate(currentWeightEntry.date) : null;
   const rateKgPerDay = dailyRateKg(weightEntries, 14);
@@ -223,37 +232,47 @@ export function GoalPage() {
     goal ? goal.targetWeightKg.toString() : '',
   );
   const [error, setError] = useState<string | null>(null);
+  const baselineWeight = oldestWeightEntry?.weightKg ?? goal?.baselineWeightKg ?? null;
+  const effectiveGoal =
+    goal && baselineWeight !== null
+      ? { ...goal, baselineWeightKg: baselineWeight }
+      : goal;
 
   const daysNeeded = useMemo(() => {
-    if (!goal || currentWeight === null) {
+    if (!effectiveGoal || currentWeight === null) {
       return null;
     }
 
-    return daysToTarget(currentWeight, goal.targetWeightKg, rateKgPerDay);
-  }, [goal, currentWeight, rateKgPerDay]);
+    return daysToTarget(currentWeight, effectiveGoal.targetWeightKg, rateKgPerDay);
+  }, [effectiveGoal, currentWeight, rateKgPerDay]);
 
   const missingKg =
-    goal && currentWeight !== null ? Math.abs(goal.targetWeightKg - currentWeight) : null;
+    effectiveGoal && currentWeight !== null
+      ? Math.abs(effectiveGoal.targetWeightKg - currentWeight)
+      : null;
   const completedPct =
-    goal && currentWeight !== null ? progressPercent(goal, currentWeight) : null;
+    effectiveGoal && currentWeight !== null
+      ? progressPercent(effectiveGoal, currentWeight)
+      : null;
   const weeklyRate = rateKgPerDay === null ? null : rateKgPerDay * 7;
   const monthlyRate = rateKgPerDay === null ? null : rateKgPerDay * 30;
   const missingPct = completedPct === null ? null : Math.max(0, 100 - completedPct);
 
   const milestones = useMemo<Milestone[]>(() => {
-    if (!goal || currentWeight === null || !currentWeightDate) {
+    if (!effectiveGoal || currentWeight === null || !currentWeightDate) {
       return [25, 50, 75, 100].map((percent) => ({ percent, eta: null, reached: false }));
     }
 
-    const totalDelta = goal.targetWeightKg - goal.baselineWeightKg;
-    const progress = progressPercent(goal, currentWeight);
+    const totalDelta = effectiveGoal.targetWeightKg - effectiveGoal.baselineWeightKg;
+    const progress = progressPercent(effectiveGoal, currentWeight);
 
     return [25, 50, 75, 100].map((percent) => {
       if (progress >= percent) {
         return { percent, eta: null, reached: true };
       }
 
-      const milestoneWeight = goal.baselineWeightKg + (totalDelta * percent) / 100;
+      const milestoneWeight =
+        effectiveGoal.baselineWeightKg + (totalDelta * percent) / 100;
       const days = daysToTarget(currentWeight, milestoneWeight, rateKgPerDay);
       return {
         percent,
@@ -261,7 +280,7 @@ export function GoalPage() {
         reached: false,
       };
     });
-  }, [goal, currentWeight, currentWeightDate, rateKgPerDay]);
+  }, [effectiveGoal, currentWeight, currentWeightDate, rateKgPerDay]);
 
   const weeklyTrends = useMemo(
     () => buildWeeklyTrends(weightEntries, activityEntries),
@@ -301,7 +320,7 @@ export function GoalPage() {
     const timestamp = nowIso();
     const nextGoal: GoalSettings = {
       targetWeightKg: target,
-      baselineWeightKg: currentWeight,
+      baselineWeightKg: oldestWeightEntry?.weightKg ?? currentWeight,
       createdAt: goal?.createdAt ?? timestamp,
       updatedAt: timestamp,
     };
@@ -381,7 +400,7 @@ export function GoalPage() {
             <h3>Current weight</h3>
             <p className="metric-value">{formatKg(currentWeight)}</p>
             <p className="metric-subtext">
-              Target: {goal ? formatKg(goal.targetWeightKg) : 'n/a'}
+              Target: {effectiveGoal ? formatKg(effectiveGoal.targetWeightKg) : 'n/a'}
             </p>
           </article>
 

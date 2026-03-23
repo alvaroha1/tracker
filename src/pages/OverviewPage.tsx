@@ -1,5 +1,6 @@
 import { loadActivityEntries } from '../features/activity/storage';
 import { loadFoodEntries } from '../features/food/storage';
+import { loadGoalSettings } from '../features/goal/storage';
 import { loadWeightEntries } from '../features/weight/storage';
 import { PieChart } from '../components/PieChart';
 
@@ -50,11 +51,6 @@ function lastNDaysRange(days: number, endDay: number): WindowRange {
   return { startDay: endDay - days + 1, endDay };
 }
 
-function previousRange(range: WindowRange): WindowRange {
-  const size = range.endDay - range.startDay + 1;
-  return { startDay: range.startDay - size, endDay: range.startDay - 1 };
-}
-
 function includesDay(range: WindowRange, day: number): boolean {
   return day >= range.startDay && day <= range.endDay;
 }
@@ -78,6 +74,26 @@ function compare(current: number | null, previous: number | null): Comparison {
   };
 }
 
+function oldestWeightEntry(
+  entries: ReturnType<typeof loadWeightEntries>,
+): ReturnType<typeof loadWeightEntries>[number] | null {
+  if (entries.length === 0) {
+    return null;
+  }
+
+  return [...entries].sort((a, b) => a.date.localeCompare(b.date))[0] ?? null;
+}
+
+function latestWeightEntry(
+  entries: ReturnType<typeof loadWeightEntries>,
+): ReturnType<typeof loadWeightEntries>[number] | null {
+  if (entries.length === 0) {
+    return null;
+  }
+
+  return [...entries].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+}
+
 function formatWithUnit(value: number | null, digits: number, unit: string): string {
   if (value === null) {
     return 'No data';
@@ -93,6 +109,15 @@ function formatPct(value: number | null): string {
 
   const sign = value >= 0 ? '+' : '';
   return `${sign}${value.toFixed(1)}%`;
+}
+
+function formatDeltaKg(value: number | null): string {
+  if (value === null) {
+    return 'No data';
+  }
+
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${value.toFixed(2)} kg`;
 }
 
 function toTopSlices(
@@ -116,12 +141,22 @@ export function OverviewPage() {
   const weights = loadWeightEntries();
   const foods = loadFoodEntries();
   const activities = loadActivityEntries();
+  const goal = loadGoalSettings();
   const today = todayDayIndex();
 
   const weight7Range = lastNDaysRange(7, today);
   const weight30Range = lastNDaysRange(30, today);
-  const previousWeight7Range = previousRange(weight7Range);
-  const previousWeight30Range = previousRange(weight30Range);
+  const startingWeightEntry = oldestWeightEntry(weights);
+  const currentWeightEntry = latestWeightEntry(weights);
+  const startingWeight = startingWeightEntry?.weightKg ?? null;
+  const currentWeight = currentWeightEntry?.weightKg ?? null;
+  const goalWeight = goal?.targetWeightKg ?? null;
+  const currentVsStart =
+    currentWeight !== null && startingWeight !== null ? currentWeight - startingWeight : null;
+  const goalVsStart =
+    goalWeight !== null && startingWeight !== null ? goalWeight - startingWeight : null;
+  const remainingToGoal =
+    goalWeight !== null && currentWeight !== null ? goalWeight - currentWeight : null;
 
   const weight7Comparison = compare(
     average(
@@ -129,11 +164,7 @@ export function OverviewPage() {
         .filter((entry) => includesDay(weight7Range, dayIndexFromDate(entry.date)))
         .map((entry) => entry.weightKg),
     ),
-    average(
-      weights
-        .filter((entry) => includesDay(previousWeight7Range, dayIndexFromDate(entry.date)))
-        .map((entry) => entry.weightKg),
-    ),
+    startingWeight,
   );
 
   const weight30Comparison = compare(
@@ -142,11 +173,7 @@ export function OverviewPage() {
         .filter((entry) => includesDay(weight30Range, dayIndexFromDate(entry.date)))
         .map((entry) => entry.weightKg),
     ),
-    average(
-      weights
-        .filter((entry) => includesDay(previousWeight30Range, dayIndexFromDate(entry.date)))
-        .map((entry) => entry.weightKg),
-    ),
+    startingWeight,
   );
 
   const todayWeight = weights.find((entry) => dayIndexFromDate(entry.date) === today) ?? null;
@@ -280,12 +307,40 @@ export function OverviewPage() {
         <h2>Weight overview</h2>
         <div className="overview-grid">
           <article className="metric-card">
+            <h3>Starting weight</h3>
+            <p className="metric-value">{formatWithUnit(startingWeight, 2, 'kg')}</p>
+            <p className="metric-subtext">
+              {startingWeightEntry ? `From ${startingWeightEntry.date}` : 'No data'}
+            </p>
+          </article>
+          <article className="metric-card">
+            <h3>Current weight</h3>
+            <p className="metric-value">{formatWithUnit(currentWeight, 2, 'kg')}</p>
+            <p className="metric-subtext">
+              Change since start: {formatDeltaKg(currentVsStart)}
+            </p>
+          </article>
+          <article className="metric-card">
+            <h3>Goal weight</h3>
+            <p className="metric-value">{formatWithUnit(goalWeight, 2, 'kg')}</p>
+            <p className="metric-subtext">
+              Goal delta from start: {formatDeltaKg(goalVsStart)}
+            </p>
+          </article>
+          <article className="metric-card">
+            <h3>Remaining to goal</h3>
+            <p className="metric-value">{formatDeltaKg(remainingToGoal)}</p>
+            <p className="metric-subtext">
+              {goalWeight === null ? 'Set a goal in the Goal tab.' : 'Based on latest logged weight.'}
+            </p>
+          </article>
+          <article className="metric-card">
             <h3>Last 7 days avg</h3>
             <p className="metric-value">
               {formatWithUnit(weight7Comparison.current, 2, 'kg')}
             </p>
             <p className="metric-subtext">
-              vs previous 7 days: {formatPct(weight7Comparison.pctChange)}
+              vs first logged weight: {formatPct(weight7Comparison.pctChange)}
             </p>
           </article>
           <article className="metric-card">
@@ -294,7 +349,7 @@ export function OverviewPage() {
               {formatWithUnit(weight30Comparison.current, 2, 'kg')}
             </p>
             <p className="metric-subtext">
-              vs previous 30 days: {formatPct(weight30Comparison.pctChange)}
+              vs first logged weight: {formatPct(weight30Comparison.pctChange)}
             </p>
           </article>
         </div>
